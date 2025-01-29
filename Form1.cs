@@ -13,29 +13,30 @@ namespace SystemZnamkovaniaStudentov
 {
     public partial class Form1 : Form
     {
+        // Tu máme slovník, kde si ukladáme známky študentov podľa predmetov
         private Dictionary<string, Dictionary<string, string>> subjectGrades = new Dictionary<string, Dictionary<string, string>>();
-        private string currentSubject;
-        private bool isTextChanging = false;
+        private string currentSubject; // Tu si pamätáme, ktorý predmet je aktuálne vybraný
+        private bool isTextChanging = false; // Zabráni nekonečným cyklom pri zmene textu v bunkách
 
         public Form1()
         {
-            InitializeComponent();
+            InitializeComponent(); // Štandardná inicializácia komponentov formulára
         }
-
+        // Funkcia, ktorá aktualizuje ID študentov v prvom DataGridView (zoznam študentov)
         private void UpdateStudentIDs()
         {
             for (int i = 0; i < dataGridViewPriezviskoMeno.Rows.Count; i++)
             {
-                if (!dataGridViewPriezviskoMeno.Rows[i].IsNewRow)
+                if (!dataGridViewPriezviskoMeno.Rows[i].IsNewRow) // Ignorujeme posledný prázdny riadok
                 {
                     dataGridViewPriezviskoMeno.Rows[i].Cells["ColumnID"].Value = i + 1;
                 }
             }
         }
-
-        private void dataGridView2_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
+        // Keď začneme editovať bunku v druhom DataGridView, pridáme event handlery na kontrolu známok
+        private void dataGridViewZnamky_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
         {
-            // Check if the edited column is Column2Znamka (grades column)
+           
             if (dataGridViewZnamky.CurrentCell.ColumnIndex == dataGridViewZnamky.Columns["Column2Znamka"].Index)
             {
                 TextBox textBox = e.Control as TextBox;
@@ -51,7 +52,7 @@ namespace SystemZnamkovaniaStudentov
                 }
             }
         }
-
+        // Kontrola vstupu pri zadávaní známok
         private void TextBox_TextChanged(object sender, EventArgs e)
         {
             if (isTextChanging) return; // Prevent recursive changes
@@ -63,7 +64,7 @@ namespace SystemZnamkovaniaStudentov
 
                 string currentText = textBox.Text;
 
-                // Remove invalid characters
+                // Ak posledný znak nie je číslo 1-5 alebo čiarka, tak ho zmažeme
                 if (currentText.Length > 0 && !"12345,".Contains(currentText.Last()))
                 {
                     currentText = currentText.Substring(0, currentText.Length - 1);
@@ -71,7 +72,7 @@ namespace SystemZnamkovaniaStudentov
                     textBox.SelectionStart = currentText.Length;
                 }
 
-                // Automatically add a comma after valid grades
+                // Ak zadáme číslo, pridáme automaticky čiarku na oddelenie
                 if (currentText.Length > 0 && "12345".Contains(currentText.Last()))
                 {
                     if (!currentText.EndsWith(","))
@@ -79,57 +80,53 @@ namespace SystemZnamkovaniaStudentov
                         currentText += ",";
                         textBox.Text = currentText;
                         textBox.SelectionStart = currentText.Length;
-                        //dataGridView2.Rows[dataGridView2.CurrentCell.RowIndex].Cells["Column2Priemer"].Value = "aa";
                     }
                 }
 
-                // Update the average in Column2Priemer
-                //UpdateAverageForRow();
 
                 isTextChanging = false;
             }
         }
-
-        private void dataGridView2_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        // Po skončení úpravy bunky prepočítame priemery
+        private void dataGridViewZnamky_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             if (e.ColumnIndex == dataGridViewZnamky.Columns["Column2Znamka"].Index)
             {
                 UpdateAverageForAllRows();
             }
         }
-
+        // Prepočítame priemerné známky pre všetkých študentov v tabuľke
         private void UpdateAverageForAllRows()
         {
-            // Loop through each row in the DataGridView
             foreach (DataGridViewRow row in dataGridViewZnamky.Rows)
             {
-                if (!row.IsNewRow) // Skip the new row placeholder
+                if (!row.IsNewRow) 
                 {
                     string gradesText = row.Cells["Column2Znamka"].Value?.ToString();
 
                     if (!string.IsNullOrWhiteSpace(gradesText))
                     {
-                        // Parse the grades, ignoring empty values
+                        // Analyzuje známky, ignoruje prázdne hodnoty
                         var grades = gradesText.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                                                .Select(g => int.TryParse(g, out int grade) ? grade : (int?)null)
                                                .Where(g => g.HasValue)
                                                .Select(g => g.Value)
                                                .ToList();
 
-                        // Calculate the average
+                        // Vypočíta priemer
                         if (grades.Count > 0)
                         {
                             double average = grades.Average();
-                            row.Cells["Column2Priemer"].Value = average.ToString("F2"); // Format to 2 decimal places
+                            row.Cells["Column2Priemer"].Value = average.ToString("F2");
                         }
                         else
                         {
-                            row.Cells["Column2Priemer"].Value = ""; // Clear if no valid grades
+                            row.Cells["Column2Priemer"].Value = ""; 
                         }
                     }
                     else
                     {
-                        row.Cells["Column2Priemer"].Value = ""; // Clear if no grades
+                        row.Cells["Column2Priemer"].Value = ""; 
                     }
                 }
             }
@@ -145,50 +142,48 @@ namespace SystemZnamkovaniaStudentov
                 {
                     string currentText = textBox.Text;
 
-                    // Handle backspace to delete a grade and its trailing comma
                     if (currentText.Length > 0 && currentText.Last() == ',')
                     {
-                        // Remove the trailing comma and the preceding grade
                         textBox.Text = currentText.Substring(0, currentText.Length - 2);
-                        textBox.SelectionStart = textBox.Text.Length; // Keep cursor at the end
-                        e.Handled = true; // Prevent default backspace behavior
+                        textBox.SelectionStart = textBox.Text.Length; // Ponechá kurzor na konci
+                        e.Handled = true;
                     }
                     else if (currentText.Length > 0)
                     {
-                        // Remove just the last character (if not a trailing comma)
+                        // Odstráni iba posledný charakter (ak nie tak koncovú čiarku)
                         textBox.Text = currentText.Substring(0, currentText.Length - 1);
-                        textBox.SelectionStart = textBox.Text.Length; // Keep cursor at the end
-                        e.Handled = true; // Prevent default backspace behavior
+                        textBox.SelectionStart = textBox.Text.Length; // Ponechá kurzor na konci
+                        e.Handled = true; 
                     }
                 }
             }
         }
 
-
+        // Funkcia na synchronizáciu mien z prvého DataGridView do druhého
         private void SyncNames()
         {
             if (currentSubject == null) return;
-            // Clear all rows in DataGridView2 before syncing
+            // pred synchronizáciou vymaže všetky riadky v DataGridViewZnamky
             dataGridViewZnamky.Rows.Clear();
 
-            // Add names from DataGridView1 to DataGridView2, preserving any grades entered
+            // Pridá mená z DataGridViewPriezviskoMeno do DataGridViewZnamky, zachová akýchkoľvek zadaný stupeň
             foreach (DataGridViewRow row in dataGridViewPriezviskoMeno.Rows)
             {
-                if (!row.IsNewRow) // Skip the new row placeholder
+                if (!row.IsNewRow)
                 {
                     string id = row.Cells["ColumnID"].Value?.ToString();
                     string priezvisko = row.Cells["ColumnPriezvisko"].Value?.ToString();
                     string meno = row.Cells["ColumnMeno"].Value?.ToString();
                     string fullName = $"{priezvisko} {meno}";
 
-                    // Find existing grade for this student (if any) using ID
+                    // Nájde existujúcu známku pre tohto študenta (ak existuje) pomocou ID
                     string existingGrade = "";
                     if (subjectGrades.ContainsKey(currentSubject) && subjectGrades[currentSubject].ContainsKey(id))
                     {
-                        existingGrade = subjectGrades[currentSubject][id]; // Get the existing grade
+                        existingGrade = subjectGrades[currentSubject][id]; // Získa známkú podľa id
                     }
 
-                    // Add the student to DataGridView2
+                    // Pridá študenta do DataGriedViewZnamky
                     dataGridViewZnamky.Rows.Add(id, priezvisko, meno, existingGrade);
                 }
             }
@@ -197,7 +192,7 @@ namespace SystemZnamkovaniaStudentov
 
         private void SaveCurrentSubjectGrades()
         {
-            // Save grades from DataGridView2 to the dictionary for the current subject
+            // Uloží známky od DataGridViewZnamky do dictionary pre aktuálny predmet
             var grades = new Dictionary<string, string>();
 
             foreach (DataGridViewRow row in dataGridViewZnamky.Rows)
@@ -209,7 +204,7 @@ namespace SystemZnamkovaniaStudentov
                     string meno = row.Cells["Column2Meno"].Value?.ToString();
                     string grade = row.Cells["Column2Znamka"].Value?.ToString();
 
-                    grades[id] = grade; // Save grade by student ID
+                    grades[id] = grade; // Uloží známky podla ID
                 }
             }
 
@@ -231,14 +226,13 @@ namespace SystemZnamkovaniaStudentov
                     {
                         string id = row.Cells["Column2ID"].Value?.ToString();
 
-                        // Set the grade if it exists
                         if (grades.ContainsKey(id))
                         {
                             row.Cells["Column2Znamka"].Value = grades[id];
                         }
                         else
                         {
-                            row.Cells["Column2Znamka"].Value = ""; // Default empty grade
+                            row.Cells["Column2Znamka"].Value = ""; // Defaultne nastavená prázdna hodnota
                         }
                     }
                 }
@@ -247,13 +241,13 @@ namespace SystemZnamkovaniaStudentov
 
         private void buttonPridajStudenta_Click(object sender, EventArgs e)
         {
-            // Add an empty student row to DataGridView1
+            // Pridá prázdny študent riadok do DataGridViewPriezviskoMeno
             dataGridViewPriezviskoMeno.Rows.Add("", "", "");
 
-            // Reassign IDs automatically
+            // Pridá ID-cka automaticky
             UpdateStudentIDs();
             SaveCurrentSubjectGrades();
-            SyncNames(); // Sync names after adding a student
+            SyncNames(); // Sychronizuje mena
         }
 
         private void buttonVymazStudenta_Click(object sender, EventArgs e)
@@ -264,9 +258,9 @@ namespace SystemZnamkovaniaStudentov
                 int cisloRiadku = aktivnaBunka.RowIndex;
                 dataGridViewPriezviskoMeno.Rows.RemoveAt(cisloRiadku);
 
-                // Reassign IDs automatically after removal
+                // Automaticky preradenie ID po odstránení
                 UpdateStudentIDs();
-                SyncNames(); // Sync names after removing a student
+                SyncNames(); // Synchronizované názvy po odstránení študenta
             }
         }
 
@@ -330,7 +324,7 @@ namespace SystemZnamkovaniaStudentov
 
         private void buttonImport_Click(object sender, EventArgs e)
         {
-            // Open the OpenFileDialog to select a CSV file
+            // Otvorí OpenFileDialog pre vyberatie súbora CSV
             openFileDialogSubor.Filter = "CSV Files|*.csv";
             openFileDialogSubor.Title = "Select a CSV File";
 
@@ -341,33 +335,32 @@ namespace SystemZnamkovaniaStudentov
 
             try
             {
-                // Open the file for reading
+                // Otvorí súbor v režime čítania
                 StreamReader subor = new StreamReader(menoSuboru, Encoding.GetEncoding("windows-1250"));
 
-                // Skip the header line (first row in the file)
+                // hlavicka je prýv riadok v súbore
                 string hlavicka = subor.ReadLine();
 
-                // Clear existing rows in the DataGridView
                 dataGridViewPriezviskoMeno.Rows.Clear();
 
-                // Read the file line by line
+                // Číta súbor postupne riadok po riadku
                 string riadok;
                 while ((riadok = subor.ReadLine()) != null)
                 {
-                    // Split the line by semicolon
+                    // Oddeluje pomocou ;
                     string[] hodnoty = riadok.Split(';');
 
-                    // Add the values to DataGridView1 (assumes two columns: Priezvisko and Meno)
+                    // Pridá hodnoty do DataGridViewMenoPriezvisko
                     if (hodnoty.Length >= 2)
                     {
                         dataGridViewPriezviskoMeno.Rows.Add("", hodnoty[0], hodnoty[1]);
                     }
                 }
 
-                // Close the file
+                // Zatvorí súbor
                 subor.Close();
 
-                // Update the student IDs after importing
+                // Aktualizuje ID studenta po importe
                 UpdateStudentIDs();
 
                 MessageBox.Show("Names imported successfully!");
