@@ -162,56 +162,59 @@ namespace SystemZnamkovaniaStudentov
         // Funkcia na synchronizáciu mien z prvého DataGridView do druhého
         private void SyncNames()
         {
-            if (currentSubject == null) return;
-            // pred synchronizáciou vymaže všetky riadky v DataGridViewZnamky
+            if (currentSubject == null) return; // Ak nie je vybraný predmet, funkcia sa ukončí
+
             dataGridViewZnamky.Rows.Clear();
 
-            // Pridá mená z DataGridViewPriezviskoMeno do DataGridViewZnamky, zachová akýchkoľvek zadaný stupeň
             foreach (DataGridViewRow row in dataGridViewPriezviskoMeno.Rows)
             {
                 if (!row.IsNewRow)
                 {
+                    // Získa ID, meno a priezvisko študenta
                     string id = row.Cells["ColumnID"].Value?.ToString();
                     string priezvisko = row.Cells["ColumnPriezvisko"].Value?.ToString();
                     string meno = row.Cells["ColumnMeno"].Value?.ToString();
-                    string fullName = $"{priezvisko} {meno}";
+                    string fullName = $"{priezvisko} {meno}".Trim();
 
-                    // Nájde existujúcu známku pre tohto študenta (ak existuje) pomocou ID
+                    // Skontroluje, či už má študent známku v slovníku subjectGrades
                     string existingGrade = "";
-                    if (subjectGrades.ContainsKey(currentSubject) && subjectGrades[currentSubject].ContainsKey(id))
+                    if (subjectGrades.ContainsKey(currentSubject) && subjectGrades[currentSubject].ContainsKey(fullName))
                     {
-                        existingGrade = subjectGrades[currentSubject][id]; // Získa známkú podľa id
+                        existingGrade = subjectGrades[currentSubject][fullName]; // Get the existing grade
                     }
 
-                    // Pridá študenta do DataGriedViewZnamky
+                    // Pridá nový riadok do dataGridViewPredmet
                     dataGridViewZnamky.Rows.Add(id, priezvisko, meno, existingGrade);
                 }
             }
+            // Aktualizuje priemery po synchronizácii
             UpdateAverageForAllRows();
         }
 
         private void SaveCurrentSubjectGrades()
         {
-            // Uloží známky od DataGridViewZnamky do dictionary pre aktuálny predmet
+            if (currentSubject == null) return;
+
             var grades = new Dictionary<string, string>();
 
             foreach (DataGridViewRow row in dataGridViewZnamky.Rows)
             {
                 if (!row.IsNewRow)
                 {
-                    string id = row.Cells["Column2ID"].Value?.ToString();
                     string priezvisko = row.Cells["Column2Priezvisko"].Value?.ToString();
                     string meno = row.Cells["Column2Meno"].Value?.ToString();
+                    string fullName = $"{priezvisko} {meno}".Trim();
+
                     string grade = row.Cells["Column2Znamka"].Value?.ToString();
 
-                    grades[id] = grade; // Uloží známky podla ID
+                    if (!string.IsNullOrEmpty(fullName))
+                    {
+                        grades[fullName] = grade; // Save grades based on student full name
+                    }
                 }
             }
 
-            if (currentSubject != null)
-            {
-                subjectGrades[currentSubject] = grades;
-            }
+            subjectGrades[currentSubject] = grades; // Update subject grades dictionary
         }
 
         private void LoadSubjectGrades(string subject)
@@ -256,13 +259,29 @@ namespace SystemZnamkovaniaStudentov
             if (aktivnaBunka != null)
             {
                 int cisloRiadku = aktivnaBunka.RowIndex;
+
+                string priezvisko = dataGridViewPriezviskoMeno.Rows[cisloRiadku].Cells["ColumnPriezvisko"].Value?.ToString();
+                string meno = dataGridViewPriezviskoMeno.Rows[cisloRiadku].Cells["ColumnMeno"].Value?.ToString();
+                string fullName = $"{priezvisko} {meno}".Trim();
+
+                // Remove grades for the deleted student
+                if (currentSubject != null && subjectGrades.ContainsKey(currentSubject))
+                {
+                    subjectGrades[currentSubject].Remove(fullName);
+                }
+
+                // Remove the student from DataGridView1
                 dataGridViewPriezviskoMeno.Rows.RemoveAt(cisloRiadku);
 
-                // Automaticky preradenie ID po odstránení
+                // Reassign IDs after removal
                 UpdateStudentIDs();
-                SyncNames(); // Synchronizované názvy po odstránení študenta
+
+                // Save and sync names to maintain correct mapping
+                SaveCurrentSubjectGrades();
+                SyncNames();
             }
         }
+
 
         private void buttonPridajPredmet_Click(object sender, EventArgs e)
         {
